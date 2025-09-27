@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Users, Briefcase, TrendingUp, Upload } from 'lucide-react';
+import { PlusCircle, Users, Briefcase, TrendingUp, Upload, MessageSquare } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
+import { AIChat } from '@/components/ai/AIChat';
 
 const RecruiterDashboard = () => {
   const { profile } = useAuth();
@@ -144,54 +145,80 @@ const RecruiterDashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Get started with common tasks</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button className="w-full justify-start" variant="outline">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create New Job Posting
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Resumes
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Users className="mr-2 h-4 w-4" />
-                View All Candidates
-              </Button>
-            </CardContent>
-          </Card>
+        {/* AI Assistant and Tools */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* AI Recruitment Assistant */}
+          <div className="lg:col-span-1">
+            <AIChat
+              context="job_creation"
+              title="Recruitment Assistant"
+              placeholder="Create a job posting, find candidates, get insights..."
+              className="h-96"
+            />
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Jobs</CardTitle>
-              <CardDescription>Your latest job postings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentJobs.length > 0 ? (
-                <div className="space-y-4">
-                  {recentJobs.map((job: any) => (
-                    <div key={job.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{job.title}</p>
-                        <p className="text-sm text-muted-foreground">{job.location}</p>
+          {/* Quick Actions */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Get started with common tasks</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button className="w-full justify-start" variant="outline">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create New Job Posting
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Resumes
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <Users className="mr-2 h-4 w-4" />
+                  View All Candidates
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  AI Job Creation
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Jobs */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Jobs</CardTitle>
+                <CardDescription>Your latest job postings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentJobs.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentJobs.map((job: any) => (
+                      <div key={job.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{job.title}</p>
+                          <p className="text-sm text-muted-foreground">{job.location}</p>
+                        </div>
+                        <Badge variant={job.is_active ? "default" : "secondary"}>
+                          {job.is_active ? "Active" : "Inactive"}
+                        </Badge>
                       </div>
-                      <Badge variant={job.is_active ? "default" : "secondary"}>
-                        {job.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No jobs posted yet</p>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-muted-foreground mb-4">No jobs posted yet</p>
+                    <Button variant="outline" size="sm">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Create Your First Job
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Top Matches */}

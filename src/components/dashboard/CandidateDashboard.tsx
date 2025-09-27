@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, Briefcase, TrendingUp, Eye } from 'lucide-react';
+import { Upload, FileText, Briefcase, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
+import { AIChat } from '@/components/ai/AIChat';
+import { ResumeUpload } from '@/components/ai/ResumeUpload';
 
 const CandidateDashboard = () => {
   const { profile } = useAuth();
@@ -140,62 +142,85 @@ const CandidateDashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Get started with your job search</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button className="w-full justify-start" variant="outline">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload New Resume
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Briefcase className="mr-2 h-4 w-4" />
-                Browse Jobs
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Edit Skills
-              </Button>
-            </CardContent>
-          </Card>
+        {/* AI Assistant and Tools */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* AI Career Assistant */}
+          <div className="lg:col-span-1">
+            <AIChat
+              context="candidate_assistance"
+              title="Career Assistant"
+              placeholder="Ask about jobs, career advice, resume tips..."
+              className="h-96"
+            />
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resume Status</CardTitle>
-              <CardDescription>Your uploaded resumes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {resumes.length > 0 ? (
-                <div className="space-y-4">
-                  {resumes.map((resume: any) => (
-                    <div key={resume.id} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{resume.filename}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(resume.created_at).toLocaleDateString()}
-                        </p>
+          {/* Quick Actions */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Get started with your job search</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button className="w-full justify-start" variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload New Resume
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Browse Jobs
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Edit Skills
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  AI Career Chat
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Resume Upload & Status */}
+          <div className="lg:col-span-1">
+            {resumes.length === 0 ? (
+              <ResumeUpload
+                onUploadComplete={(resumeData) => {
+                  setResumes([resumeData]);
+                  fetchDashboardData(); // Refresh data
+                }}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resume Status</CardTitle>
+                  <CardDescription>Your uploaded resumes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {resumes.map((resume: any) => (
+                      <div key={resume.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{resume.filename}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(resume.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge variant={resume.parsing_status === 'completed' ? "default" : "secondary"}>
+                          {resume.parsing_status}
+                        </Badge>
                       </div>
-                      <Badge variant={resume.parsing_status === 'completed' ? "default" : "secondary"}>
-                        {resume.parsing_status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground mb-4">No resumes uploaded yet</p>
-                  <Button variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Your First Resume
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                    <Button variant="outline" className="w-full" size="sm">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Another Resume
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
 
         {/* Job Recommendations */}
