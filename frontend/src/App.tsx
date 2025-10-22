@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import JobIntakeDemo from "./pages/JobIntakeDemo";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/demo/job-intake" element={<JobIntakeDemo />} />
             <Route 
               path="/dashboard" 
               element={
