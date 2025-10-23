@@ -110,6 +110,7 @@ const JobIntakeDemo: React.FC = () => {
     skills: ['React', 'TypeScript', 'Node.js', 'Docker'],
     yearsExperience: 4,
   });
+  const [skillsText, setSkillsText] = useState('React, TypeScript, Node.js, Docker');
   const [audit, setAudit] = useState<AuditLog[]>([]);
 
   const jobProfile = useMemo(() => extractJobProfile(jdText), [jdText]);
@@ -194,7 +195,16 @@ const JobIntakeDemo: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <Input value={candidate.name} onChange={e => setCandidate(c => ({ ...c, name: e.target.value }))} placeholder="Candidate name" />
-              <Input value={candidate.skills.join(', ')} onChange={e => setCandidate(c => ({ ...c, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} placeholder="Skills (comma separated)" />
+               <Input
+                 value={skillsText}
+                 onChange={e => {
+                   const text = e.target.value;
+                   setSkillsText(text);
+                   const parsed = text.split(',').map(s => s.trim()).filter(Boolean);
+                   setCandidate(c => ({ ...c, skills: parsed }));
+                 }}
+                 placeholder="Skills (comma separated)"
+               />
               <Input type="number" value={candidate.yearsExperience ?? ''} onChange={e => setCandidate(c => ({ ...c, yearsExperience: e.target.value ? parseInt(e.target.value, 10) : undefined }))} placeholder="Years of experience" />
               <div className="flex items-center gap-3">
                 <div className="text-3xl font-bold">{Math.round(scoring.score)}%</div>

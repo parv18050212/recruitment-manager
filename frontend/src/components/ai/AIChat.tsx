@@ -20,13 +20,15 @@ interface AIChatProps {
   title?: string;
   placeholder?: string;
   className?: string;
+  triggerMessage?: string;
 }
 
 export const AIChat: React.FC<AIChatProps> = ({
   context = 'general',
   title = 'AI Assistant',
   placeholder = 'Ask me anything...',
-  className = ''
+  className = '',
+  triggerMessage
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -46,6 +48,12 @@ export const AIChat: React.FC<AIChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (triggerMessage && triggerMessage !== inputValue) {
+      setInputValue(triggerMessage);
+    }
+  }, [triggerMessage]);
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;

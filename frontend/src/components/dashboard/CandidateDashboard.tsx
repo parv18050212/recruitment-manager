@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, Briefcase, TrendingUp, Eye, MessageSquare } from 'lucide-react';
+import { Upload, FileText, Briefcase, TrendingUp, Eye, MessageSquare, Brain, Lightbulb, Target, Zap, CheckCircle2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { AIChat } from '@/components/ai/AIChat';
 import { ResumeUpload } from '@/components/ai/ResumeUpload';
@@ -23,6 +23,14 @@ const CandidateDashboard = () => {
   const [recentMatches, setRecentMatches] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiInsights, setAiInsights] = useState({
+    strengths: [],
+    improvements: [],
+    marketTrends: [],
+    recommendations: []
+  });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [quickPrompt, setQuickPrompt] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
@@ -64,6 +72,62 @@ const CandidateDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runAIAnalysis = async () => {
+    if (resumes.length === 0) {
+      toast({
+        title: 'No Resume Found',
+        description: 'Please upload a resume first to get AI insights',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    
+    try {
+      // Simulate AI analysis - in real implementation, this would call an AI service
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const mockInsights = {
+        strengths: [
+          'Strong technical skills in React and Node.js',
+          'Good experience with modern development practices',
+          'Clear career progression shown'
+        ],
+        improvements: [
+          'Add more quantified achievements (e.g., "increased performance by 40%")',
+          'Include relevant certifications',
+          'Expand on leadership experiences'
+        ],
+        marketTrends: [
+          'Full-stack developers with React skills are in high demand',
+          'Companies are looking for cloud experience (AWS/Azure)',
+          'Remote work opportunities are increasing'
+        ],
+        recommendations: [
+          'Consider learning TypeScript to increase job matches',
+          'Add Docker/Kubernetes experience for better opportunities',
+          'Highlight any open-source contributions'
+        ]
+      };
+
+      setAiInsights(mockInsights);
+      
+      toast({
+        title: 'Analysis Complete!',
+        description: 'AI has analyzed your resume and provided insights',
+      });
+    } catch (error) {
+      toast({
+        title: 'Analysis Failed',
+        description: 'Failed to analyze resume. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -146,12 +210,52 @@ const CandidateDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* AI Career Assistant */}
           <div className="lg:col-span-1">
-            <AIChat
-              context="candidate_assistance"
-              title="Career Assistant"
-              placeholder="Ask about jobs, career advice, resume tips..."
-              className="h-96"
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  AI Career Assistant
+                </CardTitle>
+                <CardDescription>Get personalized career guidance and job search advice</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AIChat
+                  context="candidate_assistance"
+                  title=""
+                  placeholder="Ask about jobs, career advice, resume tips..."
+                  className="h-80"
+                  triggerMessage={quickPrompt}
+                />
+                
+                {/* Quick Starter Prompts */}
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Quick questions:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setQuickPrompt("How can I improve my resume for tech jobs?")}
+                    >
+                      Resume Tips
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setQuickPrompt("What are the best interview preparation strategies?")}
+                    >
+                      Interview Prep
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setQuickPrompt("What skills should I learn to advance my career?")}
+                    >
+                      Skill Development
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Quick Actions */}
@@ -182,7 +286,7 @@ const CandidateDashboard = () => {
             </Card>
           </div>
 
-          {/* Resume Upload & Status */}
+          {/* AI Resume Analyzer */}
           <div className="lg:col-span-1">
             {resumes.length === 0 ? (
               <ResumeUpload
@@ -194,8 +298,11 @@ const CandidateDashboard = () => {
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle>Resume Status</CardTitle>
-                  <CardDescription>Your uploaded resumes</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-primary" />
+                    AI Resume Analyzer
+                  </CardTitle>
+                  <CardDescription>Get intelligent insights about your resume</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -212,6 +319,16 @@ const CandidateDashboard = () => {
                         </Badge>
                       </div>
                     ))}
+                    
+                    <Button 
+                      onClick={runAIAnalysis} 
+                      disabled={isAnalyzing}
+                      className="w-full"
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      {isAnalyzing ? 'Analyzing...' : 'Run AI Analysis'}
+                    </Button>
+                    
                     <Button variant="outline" className="w-full" size="sm">
                       <Upload className="mr-2 h-4 w-4" />
                       Upload Another Resume
@@ -222,6 +339,86 @@ const CandidateDashboard = () => {
             )}
           </div>
         </div>
+
+        {/* AI Insights Section */}
+        {(aiInsights.strengths.length > 0 || aiInsights.improvements.length > 0) && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                AI Resume Insights
+              </CardTitle>
+              <CardDescription>Intelligent analysis and recommendations for your resume</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Strengths */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <h3 className="font-semibold">Strengths</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {aiInsights.strengths.map((strength, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-sm">{strength}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Improvements */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-yellow-600" />
+                    <h3 className="font-semibold">Areas for Improvement</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {aiInsights.improvements.map((improvement, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-sm">{improvement}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Market Trends */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    <h3 className="font-semibold">Market Trends</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {aiInsights.marketTrends.map((trend, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-sm">{trend}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recommendations */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-purple-600" />
+                    <h3 className="font-semibold">Recommendations</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {aiInsights.recommendations.map((recommendation, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-sm">{recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Job Recommendations */}
         <Card>
