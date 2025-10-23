@@ -106,7 +106,7 @@ function scoreCandidateFit(job: JobProfile, candidate: CandidateProfile): { scor
 const JobIntakeDemo: React.FC = () => {
   const [jdText, setJdText] = useState('Title: Full Stack Developer\nSkills: React, Node.js, TypeScript, PostgreSQL\nNice to have: Docker, AWS\nLocations: Remote, Bangalore\nExperience: 3+ years\nSalary: 12–20 LPA');
   const [candidate, setCandidate] = useState<CandidateProfile>({
-    name: 'Sample Candidate',
+    name: 'Akshansh Patel',
     skills: ['React', 'TypeScript', 'Node.js', 'Docker'],
     yearsExperience: 4,
   });
