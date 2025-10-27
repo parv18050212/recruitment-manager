@@ -1,130 +1,52 @@
-from typing import Dict, Any, List
-from app.agents.base_agent import BaseAgent
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
+from datetime import datetime
+from loguru import logger
+
+from app.agents.base_agent import BaseAgent, ChatPromptTemplate, PydanticOutputParser, Runnable
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.services.resume_parser import resume_parser
-from loguru import logger
+
+
+# 1. Define the Pydantic schema for the LLM output
+class CandidateAnalysisResult(BaseModel):
+    """Pydantic model for candidate-job fit analysis."""
+    fit_score: int = Field(description="A score from 0-100 indicating candidate-job fit.", ge=0, le=100)
+    confidence: float = Field(description="A score from 0-1 indicating the confidence in the fit_score.", ge=0, le=1)
+    matching_skills: List[str] = Field(description="List of required skills that the candidate possesses.")
+    missing_skills: List[str] = Field(description="List of required skills the candidate does not have.")
+    unique_strengths: List[str] = Field(description="Candidate's unique strengths or standout qualities for this role.")
+    concerns: List[str] = Field(description="Any red flags or concerns about the candidate's fit.")
+    experience_match: str = Field(description="One of: 'under-qualified', 'qualified', 'over-qualified'")
+    education_match: str = Field(description="One of: 'meets requirements', 'exceeds requirements', 'below requirements'")
+    reasoning: str = Field(description="Detailed 3-4 sentence explanation of the score and recommendation.")
+    recommendation: str = Field(description="One of: 'strong_fit', 'potential_fit', 'weak_fit', 'not_suitable'")
 
 
 class CandidateIntelligenceAgent(BaseAgent):
     """
-    Agent responsible for analyzing candidates and matching them with jobs
-    Extracts candidate information, calculates fit scores, and provides reasoning
+    Agent responsible for analyzing candidates and matching them with jobs.
+    Uses LangChain with PydanticOutputParser for structured analysis.
     """
     
     def __init__(self, db):
         super().__init__(name="CandidateIntelligenceAgent", db=db)
-    
-    async def perceive(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Perceive: Load candidate and job data
+        self.chain = self._build_chain()
+
+    def _build_chain(self) -> Runnable:
+        """Builds the LangChain chain for this agent."""
         
-        Args:
-            context: Contains candidate_id and job_id
-            
-        Returns:
-            Candidate and job information
-        """
-        candidate_id = context.get("candidate_id")
-        job_id = context.get("job_id")
-        resume_path = context.get("resume_path")
-        
-        # Load candidate
-        if candidate_id:
-            candidate = self.db.query(Candidate).filter(Candidate.id == candidate_id).first()
-            if not candidate:
-                raise ValueError(f"Candidate {candidate_id} not found")
-            
-            candidate_data = {
-                "id": candidate.id,
-                "name": candidate.full_name,
-                "email": candidate.email,
-                "skills": candidate.skills,
-                "experience_years": candidate.experience_years,
-                "education": candidate.education,
-                "work_history": candidate.work_history,
-                "resume_text": candidate.resume_text,
-                "candidate_profile": candidate.candidate_profile
-            }
-        elif resume_path:
-            # Parse new resume
-            parse_result = await resume_parser.parse_resume(resume_path)
-            if not parse_result["success"]:
-                raise ValueError(f"Failed to parse resume: {parse_result.get('error')}")
-            
-            candidate_data = parse_result["structured_data"]
-            candidate_data["resume_text"] = parse_result["raw_text"]
-        else:
-            raise ValueError("Must provide candidate_id or resume_path")
-        
-        # Load job
-        job = self.db.query(Job).filter(Job.id == job_id).first()
-        if not job:
-            raise ValueError(f"Job {job_id} not found")
-        
-        job_data = {
-            "id": job.id,
-            "title": job.title,
-            "description": job.description,
-            "required_skills": job.required_skills,
-            "preferred_skills": job.preferred_skills,
-            "min_experience_years": job.min_experience_years,
-            "max_experience_years": job.max_experience_years,
-            "education_required": job.education_required,
-            "job_profile": job.job_profile
-        }
-        
-        return {
-            "candidate": candidate_data,
-            "job": job_data
-        }
-    
-    async def think(self, perceived_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Think: Analyze candidate-job fit using LLM reasoning
-        
-        Args:
-            perceived_data: Candidate and job data
-            
-        Returns:
-            Analysis plan with fit score and reasoning
-        """
-        candidate = perceived_data["candidate"]
-        job = perceived_data["job"]
-        
-        # Create analysis prompt
-        prompt = f"""
+        # 1. Setup the parser
+        parser = PydanticOutputParser(pydantic_object=CandidateAnalysisResult)
+
+        # 2. Setup the prompt template
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", """
 You are an expert technical recruiter. Analyze the candidate's fit for this job position.
-
-JOB POSITION: {job['title']}
-
-JOB REQUIREMENTS:
-- Required Skills: {', '.join(job['required_skills']) if job['required_skills'] else 'Not specified'}
-- Preferred Skills: {', '.join(job['preferred_skills']) if job['preferred_skills'] else 'Not specified'}
-- Experience Required: {job['min_experience_years']}-{job['max_experience_years']} years
-- Education: {job['education_required'] or 'Not specified'}
-
-CANDIDATE PROFILE:
-Name: {candidate.get('full_name', candidate.get('name', 'Unknown'))}
-Skills: {', '.join(candidate['skills']) if candidate['skills'] else 'Not specified'}
-Experience: {candidate['experience_years']} years
-Education: {candidate['education']}
-Work History: {candidate['work_history']}
-
-Analyze the candidate-job fit and return a JSON object with:
-
-{{
-    "fit_score": <number 0-100>,
-    "confidence": <number 0-1>,
-    "matching_skills": [<list of skills that match>],
-    "missing_skills": [<list of required skills candidate doesn't have>],
-    "unique_strengths": [<candidate's unique strengths or standout qualities>],
-    "concerns": [<any red flags or concerns>],
-    "experience_match": "<under-qualified|qualified|over-qualified>",
-    "education_match": "<meets requirements|exceeds requirements|below requirements>",
-    "reasoning": "<detailed 3-4 sentence explanation of the score>",
-    "recommendation": "<strong_fit|potential_fit|weak_fit|not_suitable>"
-}}
+Provide a detailed, unbiased analysis based *only* on the provided job and candidate data.
+Follow the JSON schema instructions precisely.
 
 SCORING GUIDELINES:
 - 90-100: Exceptional fit, rare find
@@ -132,156 +54,152 @@ SCORING GUIDELINES:
 - 60-74: Good fit, worth considering
 - 40-59: Moderate fit, has potential
 - 0-39: Weak fit, missing critical requirements
-"""
-        
-        try:
-            analysis = await self.ask_llm_json(prompt)
-            
-            return {
-                "action": "analyze_fit",
-                "analysis": analysis,
-                "next_steps": self._determine_next_steps(analysis)
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to analyze candidate fit: {str(e)}")
-            raise
-    
-    async def act(self, action_plan: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Act: Save analysis results to candidate record
-        
-        Args:
-            action_plan: Analysis results from think phase
-            
-        Returns:
-            Update results
-        """
-        analysis = action_plan["analysis"]
-        candidate_id = self.state.get("candidate_id")
-        
-        if candidate_id:
-            candidate = self.db.query(Candidate).filter(Candidate.id == candidate_id).first()
-            if candidate:
-                # Update candidate with analysis
-                candidate.fit_score = analysis["fit_score"]
-                candidate.confidence = analysis["confidence"]
-                candidate.reasoning = analysis["reasoning"]
-                candidate.candidate_profile = {
-                    "matching_skills": analysis["matching_skills"],
-                    "missing_skills": analysis["missing_skills"],
-                    "unique_strengths": analysis["unique_strengths"],
-                    "concerns": analysis["concerns"],
-                    "experience_match": analysis["experience_match"],
-                    "education_match": analysis["education_match"]
-                }
-                
-                # Update status based on recommendation
-                if analysis["recommendation"] == "strong_fit":
-                    candidate.is_shortlisted = True
-                    candidate.status = "shortlisted"
-                elif analysis["recommendation"] == "potential_fit":
-                    candidate.status = "under_review"
-                else:
-                    candidate.status = "screening"
-                
-                self.db.commit()
-                self.db.refresh(candidate)
-                
-                return {
-                    "status": "analyzed",
-                    "candidate_id": candidate.id,
-                    "fit_score": candidate.fit_score,
-                    "recommendation": analysis["recommendation"],
-                    "next_steps": action_plan["next_steps"]
-                }
-        
-        return {
-            "status": "analyzed",
-            "analysis": analysis,
-            "message": "Analysis complete but not saved (no candidate_id)"
-        }
-    
-    async def reflect(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Reflect: Evaluate quality of analysis
-        
-        Args:
-            results: Analysis results
-            
-        Returns:
-            Quality reflection
-        """
-        analysis = results.get("analysis", {})
-        fit_score = analysis.get("fit_score", 0)
-        confidence = analysis.get("confidence", 0)
-        
-        return {
-            "analysis_quality": "high" if confidence > 0.8 else "medium" if confidence > 0.5 else "low",
-            "decision_clarity": "clear" if fit_score > 75 or fit_score < 40 else "borderline",
-            "learnings": [
-                f"Candidate scored {fit_score}/100",
-                f"Found {len(analysis.get('matching_skills', []))} matching skills",
-                f"Identified {len(analysis.get('missing_skills', []))} skill gaps"
+"""),
+                ("human", """
+Please analyze the following candidate for the given job.
+
+--- JOB POSITION ---
+TITLE: {job_title}
+REQUIREMENTS:
+- Required Skills: {job_req_skills}
+- Preferred Skills: {job_pref_skills}
+- Experience Required: {job_exp} years
+- Education: {job_edu}
+- Job Profile: {job_profile}
+
+--- CANDIDATE PROFILE ---
+NAME: {candidate_name}
+SKILLS: {candidate_skills}
+EXPERIENCE: {candidate_exp} years
+EDUCATION: {candidate_edu}
+WORK HISTORY: {candidate_work_history}
+CANDIDATE SUMMARY: {candidate_profile}
+
+{format_instructions}
+"""),
             ]
-        }
-    
-    def _determine_next_steps(self, analysis: Dict[str, Any]) -> List[str]:
-        """
-        Determine what actions should be taken based on analysis
+        )
         
-        Args:
-            analysis: Candidate analysis results
-            
-        Returns:
-            List of recommended next steps
-        """
-        recommendation = analysis.get("recommendation")
-        fit_score = analysis.get("fit_score", 0)
-        
+        # 3. Return the full chain
+        return prompt_template | self.llm | parser
+
+    def _determine_next_steps(self, recommendation: str, fit_score: int) -> List[str]:
+        """Determine what actions should be taken based on analysis."""
         next_steps = []
-        
         if recommendation == "strong_fit" or fit_score >= 75:
-            next_steps.extend([
-                "Send selection email to candidate",
-                "Schedule screening call",
-                "Add to priority review list"
-            ])
+            next_steps.extend(["Schedule screening call", "Add to priority review list"])
         elif recommendation == "potential_fit" or fit_score >= 60:
-            next_steps.extend([
-                "Flag for HR review",
-                "Consider for phone screening",
-                "Keep in talent pool"
-            ])
+            next_steps.extend(["Flag for HR review", "Consider for phone screening"])
         elif fit_score >= 40:
             next_steps.append("Add to secondary candidate pool")
         else:
-            next_steps.append("Send polite rejection email")
-        
+            next_steps.append("Send polite rejection email (automated)")
         return next_steps
-    
+
     async def analyze_candidate(
         self,
         candidate_id: str,
         job_id: str
     ) -> Dict[str, Any]:
         """
-        Public method to analyze a candidate for a specific job
-        
-        Args:
-            candidate_id: Candidate ID to analyze
-            job_id: Job ID to match against
-            
-        Returns:
-            Analysis results
+        Public method to analyze a candidate for a specific job.
+        This replaces the old 'execute' loop.
         """
-        self.state["candidate_id"] = candidate_id
-        self.state["job_id"] = job_id
+        log_ctx = {"candidate_id": candidate_id, "job_id": job_id}
+        self._log_audit("start", f"Starting analysis for candidate {candidate_id} for job {job_id}", log_ctx)
         
-        return await self.execute({
-            "candidate_id": candidate_id,
-            "job_id": job_id
-        })
+        try:
+            # 1. PERCEIVE: Load data from DB
+            candidate = self.db.query(Candidate).filter(Candidate.id == candidate_id).first()
+            if not candidate:
+                raise ValueError(f"Candidate {candidate_id} not found")
+            
+            job = self.db.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+                
+            self._log_audit("perceive", "Loaded candidate and job data from DB", log_ctx)
+
+            # 2. THINK: Run the LangChain chain
+            self._log_audit("think", "Running LLM analysis chain...", log_ctx)
+            
+            analysis_result: CandidateAnalysisResult = await self.chain.ainvoke({
+                # Job Info
+                "job_title": job.title,
+                "job_req_skills": ", ".join(job.required_skills) if job.required_skills else 'Not specified',
+                "job_pref_skills": ", ".join(job.preferred_skills) if job.preferred_skills else 'Not specified',
+                "job_exp": f"{job.min_experience_years}-{job.max_experience_years}" if job.min_experience_years else 'Not specified',
+                "job_edu": job.education_required or 'Not specified',
+                "job_profile": str(job.job_profile),
+                # Candidate Info
+                "candidate_name": candidate.full_name,
+                "candidate_skills": ", ".join(candidate.skills) if candidate.skills else 'Not specified',
+                "candidate_exp": candidate.experience_years or 0,
+                "candidate_edu": str(candidate.education),
+                "candidate_work_history": str(candidate.work_history),
+                "candidate_profile": str(candidate.candidate_profile),
+                # Format Instructions
+                "format_instructions": PydanticOutputParser(pydantic_object=CandidateAnalysisResult).get_format_instructions(),
+            })
+            
+            analysis_dict = analysis_result.model_dump()
+            self._log_audit("think_complete", "Successfully analyzed candidate", {**log_ctx, "score": analysis_result.fit_score})
+
+            # 3. ACT: Save results back to the DB
+            candidate.fit_score = analysis_result.fit_score
+            candidate.confidence = analysis_result.confidence
+            candidate.reasoning = analysis_result.reasoning
+            
+            # Merge analysis into candidate_profile JSONB field
+            profile_data = candidate.candidate_profile or {}
+            profile_data.update({
+                "matching_skills": analysis_result.matching_skills,
+                "missing_skills": analysis_result.missing_skills,
+                "unique_strengths": analysis_result.unique_strengths,
+                "concerns": analysis_result.concerns,
+                "experience_match": analysis_result.experience_match,
+                "education_match": analysis_result.education_match
+            })
+            candidate.candidate_profile = profile_data
+            
+            # Update status
+            if analysis_result.recommendation == "strong_fit":
+                candidate.is_shortlisted = True
+                candidate.status = "shortlisted"
+            elif analysis_result.recommendation == "potential_fit":
+                candidate.status = "under_review"
+            else:
+                candidate.status = "screening"
+            
+            self.db.commit()
+            self.db.refresh(candidate)
+            self._log_audit("act", "Saved analysis results to DB", {**log_ctx, "score": candidate.fit_score})
+            
+            # 4. Determine next steps
+            next_steps = self._determine_next_steps(analysis_result.recommendation, analysis_result.fit_score)
+            
+            return {
+                "success": True,
+                "agent": self.name,
+                "results": {
+                    "status": "analyzed",
+                    "candidate_id": candidate.id,
+                    "analysis": analysis_dict,
+                    "next_steps": next_steps
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Agent {self.name} execution failed: {str(e)}", **log_ctx)
+            self.db.rollback()
+            self._log_audit("error", f"Execution failed: {str(e)}", {**log_ctx, "error": str(e)}, severity="error")
+            return {
+                "success": False,
+                "agent": self.name,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
     
     async def bulk_analyze_candidates(
         self,
@@ -289,14 +207,9 @@ SCORING GUIDELINES:
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        Analyze multiple candidates for a job
-        
-        Args:
-            job_id: Job ID to match against
-            limit: Maximum number of candidates to analyze
-            
-        Returns:
-            List of analysis results
+        Analyze multiple candidates for a job.
+        This method remains largely the same, as it just calls
+        the newly refactored analyze_candidate method.
         """
         # Get all unscored candidates for this job
         candidates = self.db.query(Candidate).filter(
@@ -304,17 +217,20 @@ SCORING GUIDELINES:
             Candidate.fit_score.is_(None)
         ).limit(limit).all()
         
+        self._log_audit("bulk_start", f"Starting bulk analysis for job {job_id} on {len(candidates)} candidates", {"job_id": job_id, "count": len(candidates)})
+        
         results = []
         for candidate in candidates:
             try:
                 result = await self.analyze_candidate(candidate.id, job_id)
                 results.append(result)
             except Exception as e:
-                logger.error(f"Failed to analyze candidate {candidate.id}: {str(e)}")
+                logger.error(f"Failed to analyze candidate {candidate.id} in bulk: {str(e)}")
                 results.append({
                     "success": False,
                     "candidate_id": candidate.id,
                     "error": str(e)
                 })
         
+        self._log_audit("bulk_complete", f"Finished bulk analysis for job {job_id}", {"job_id": job_id, "processed": len(results)})
         return results
