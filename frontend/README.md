@@ -1,73 +1,30 @@
-# Welcome to your Lovable project
+🤖 AI Recruitment Agent
 
-## Project info
+An intelligent, end-to-end AI-powered recruitment assistant designed to streamline the hiring process — from resume screening and candidate ranking to interview scheduling and feedback collection.
 
-**URL**: https://lovable.dev/projects/e7b392c9-9543-4002-b042-85d004fe84da
+This project integrates Natural Language Processing (NLP) and Machine Learning (ML) to help recruiters make faster, data-driven decisions.
 
-## How can I edit this code?
+🚀 Features
+🧠 Core Intelligence
 
-There are several ways of editing your application.
+Resume Parsing — Extracts key information such as skills, education, and experience.
 
-**Use Lovable**
+Job Matching — Compares candidate profiles with job descriptions using NLP similarity models.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e7b392c9-9543-4002-b042-85d004fe84da) and start prompting.
+Candidate Ranking — Scores candidates based on relevance and experience fit.
 
-Changes made via Lovable will be committed automatically to this repo.
+Feedback Analysis — Uses sentiment analysis on interview feedback to detect candidate suitability.
 
-**Use your preferred IDE**
+🧩 Workflow Automation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Automated Shortlisting — Instantly filters top candidates from large applicant pools.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Interview Scheduling — Integrates with calendar APIs to coordinate interviews.
 
-Follow these steps:
+Email Communication — Sends automatic updates to candidates and HR via SMTP or API.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+🕵️‍♀️ Recruiter Dashboard
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Search Candidates — Filter applicants by role, skill, or experience.
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e7b392c9-9543-4002-b042-85d004fe84da) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Job Management — Add and manage job postings.
