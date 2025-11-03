@@ -70,32 +70,70 @@ export const AIChat: React.FC<AIChatProps> = ({
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-chat', {
-        body: {
-          message: inputValue,
-          context: context
-        }
-      });
+      const CHAT_API_URL = (import.meta as any).env?.VITE_CHAT_API_URL || (import.meta as any).env?.NEXT_PUBLIC_CHAT_API_URL;
+      const CHAT_API_KEY = (import.meta as any).env?.VITE_CHAT_API_KEY || (import.meta as any).env?.NEXT_PUBLIC_CHAT_API_KEY;
 
-      if (error) {
-        throw error;
+      let aiText: string | null = null;
+
+      if (CHAT_API_URL) {
+        try {
+          const res = await fetch(CHAT_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(CHAT_API_KEY ? { 'Authorization': `Bearer ${CHAT_API_KEY}` } : {}),
+            },
+            body: JSON.stringify({ message: userMessage.content, context }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `Request failed with status ${res.status}`);
+          }
+
+          // Try to parse flexible response shapes
+          const data = await res.json().catch(() => ({} as any));
+          aiText =
+            data?.response ||
+            data?.message ||
+            data?.answer ||
+            (typeof data === 'string' ? data : null);
+        } catch (err) {
+          console.error('Chat API error:', err);
+          aiText = null; // fallback to next strategy
+        }
+      }
+
+      // Fallback: try existing supabase function if configured
+      if (!aiText) {
+        try {
+          const { data, error } = await supabase.functions.invoke('ai-chat', {
+            body: { message: userMessage.content, context }
+          });
+          if (error) throw error;
+          aiText = data?.response ?? null;
+        } catch (err) {
+          console.warn('Supabase ai-chat fallback failed:', err);
+          aiText = null;
+        }
+      }
+
+      // Final fallback: mock reply
+      if (!aiText) {
+        aiText = `Here\'s a helpful demo answer for: "${userMessage.content}"\n\n` +
+          `- Tip: Tailor your resume to each role.\n` +
+          `- Try highlighting measurable outcomes.\n` +
+          `- I can also suggest skills to learn next.`;
       }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.response || 'Sorry, I couldn\'t process that request.',
+        content: aiText,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('AI Chat error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to get AI response. Please try again.',
-        variant: 'destructive',
-      });
     } finally {
       setIsLoading(false);
     }

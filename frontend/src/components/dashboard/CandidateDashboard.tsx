@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +7,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, FileText, Briefcase, TrendingUp, Eye, MessageSquare, Brain, Lightbulb, Target, Zap, CheckCircle2 } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { AIChat } from '@/components/ai/AIChat';
-import { ResumeUpload } from '@/components/ai/ResumeUpload';
+// import { ResumeUpload } from '@/components/ai/ResumeUpload';
 
 const CandidateDashboard = () => {
-  const { profile } = useAuth();
   const { toast } = useToast();
   const [stats, setStats] = useState({
     totalResumes: 0,
@@ -22,6 +19,7 @@ const CandidateDashboard = () => {
   });
   const [recentMatches, setRecentMatches] = useState([]);
   const [resumes, setResumes] = useState([]);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiInsights, setAiInsights] = useState({
     strengths: [],
@@ -33,47 +31,46 @@ const CandidateDashboard = () => {
   const [quickPrompt, setQuickPrompt] = useState('');
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    // Mock data load for public demo
+    const timer = setTimeout(() => {
+      const mockResumes = [
+        {
+          id: 'demo-resume-1',
+          filename: 'resume_jane_doe.pdf',
+          created_at: new Date().toISOString(),
+          parsing_status: 'completed',
+        }
+      ];
 
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch resume statistics
-      const { data: resumeData } = await supabase
-        .from('resumes')
-        .select('*, resume_skills(*)')
-        .eq('candidate_id', profile.id);
-
-      // Fetch job matches
-      const { data: matches } = await supabase
-        .from('matches')
-        .select('*, jobs(title, company_id, companies(name))')
-        .eq('candidate_id', profile.id)
-        .order('fit_score', { ascending: false })
-        .limit(5);
-
-      const totalSkills = resumeData?.reduce((acc, resume) => acc + (resume.resume_skills?.length || 0), 0) || 0;
+      const mockMatches = [
+        {
+          id: 'match-1',
+          fit_score: 0.86,
+          skill_match_count: 7,
+          total_required_skills: 9,
+          jobs: { title: 'Frontend Developer', companies: { name: 'Acme Corp' } },
+        },
+        {
+          id: 'match-2',
+          fit_score: 0.78,
+          skill_match_count: 6,
+          total_required_skills: 9,
+          jobs: { title: 'Full-Stack Engineer', companies: { name: 'Globex' } },
+        }
+      ];
 
       setStats({
-        totalResumes: resumeData?.length || 0,
-        jobMatches: matches?.length || 0,
-        profileViews: 0, // This would come from analytics
-        skillsExtracted: totalSkills
+        totalResumes: mockResumes.length,
+        jobMatches: mockMatches.length,
+        profileViews: 12,
+        skillsExtracted: 24,
       });
-
-      setRecentMatches(matches || []);
-      setResumes(resumeData || []);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load dashboard data',
-        variant: 'destructive',
-      });
-    } finally {
+      setRecentMatches(mockMatches as any);
+      setResumes(mockResumes as any);
       setLoading(false);
-    }
-  };
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const runAIAnalysis = async () => {
     if (resumes.length === 0) {
@@ -147,7 +144,7 @@ const CandidateDashboard = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Welcome back, {profile.full_name}</h1>
+          <h1 className="text-3xl font-bold">Welcome back, Candidate</h1>
           <p className="text-muted-foreground">Track your job search progress and discover new opportunities.</p>
         </div>
 
@@ -289,12 +286,30 @@ const CandidateDashboard = () => {
           {/* AI Resume Analyzer */}
           <div className="lg:col-span-1">
             {resumes.length === 0 ? (
-              <ResumeUpload
-                onUploadComplete={(resumeData) => {
-                  setResumes([resumeData]);
-                  fetchDashboardData(); // Refresh data
-                }}
-              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-primary" />
+                    AI Resume Analyzer
+                  </CardTitle>
+                  <CardDescription>Upload a resume to get personalized insights</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResumeDropzone 
+                    onFileSelected={(file) => {
+                      setUploadedFile(file);
+                      const mockResume = {
+                        id: 'local-' + Date.now(),
+                        filename: file.name,
+                        created_at: new Date().toISOString(),
+                        parsing_status: 'uploaded',
+                        size: file.size,
+                      } as any;
+                      setResumes([mockResume]);
+                    }}
+                  />
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardHeader>
@@ -311,7 +326,7 @@ const CandidateDashboard = () => {
                         <div>
                           <p className="font-medium">{resume.filename}</p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(resume.created_at).toLocaleDateString()}
+                            {new Date(resume.created_at).toLocaleDateString()} {resume.size ? `• ${(resume.size / 1024 / 1024).toFixed(2)} MB` : ''}
                           </p>
                         </div>
                         <Badge variant={resume.parsing_status === 'completed' ? "default" : "secondary"}>
@@ -319,9 +334,16 @@ const CandidateDashboard = () => {
                         </Badge>
                       </div>
                     ))}
-                    
+
                     <Button 
-                      onClick={runAIAnalysis} 
+                      onClick={() => {
+                        if (!uploadedFile) {
+                          toast({ title: 'No file', description: 'Please upload a resume first.' });
+                          return;
+                        }
+                        analyzeResume(uploadedFile);
+                        runAIAnalysis();
+                      }} 
                       disabled={isAnalyzing}
                       className="w-full"
                     >
@@ -329,10 +351,20 @@ const CandidateDashboard = () => {
                       {isAnalyzing ? 'Analyzing...' : 'Run AI Analysis'}
                     </Button>
                     
-                    <Button variant="outline" className="w-full" size="sm">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Another Resume
-                    </Button>
+                    <ResumeDropzone 
+                      small
+                      onFileSelected={(file) => {
+                        setUploadedFile(file);
+                        const mockResume = {
+                          id: 'local-' + Date.now(),
+                          filename: file.name,
+                          created_at: new Date().toISOString(),
+                          parsing_status: 'uploaded',
+                          size: file.size,
+                        } as any;
+                        setResumes([mockResume]);
+                      }}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -479,3 +511,74 @@ const CandidateDashboard = () => {
 };
 
 export default CandidateDashboard;
+
+// Local, backend-free resume dropzone component
+const ResumeDropzone: React.FC<{
+  onFileSelected: (file: File) => void;
+  small?: boolean;
+}> = ({ onFileSelected, small }) => {
+  const { toast } = useToast();
+  const inputId = React.useId();
+
+  const ACCEPTED = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+  ];
+  const MAX_MB = 10;
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const file = fileList[0];
+
+    if (!ACCEPTED.includes(file.type) && !file.name.toLowerCase().endsWith('.docx') && !file.name.toLowerCase().endsWith('.pdf') && !file.name.toLowerCase().endsWith('.txt')) {
+      toast({ title: 'Unsupported file', description: 'Please upload a PDF, DOCX, or TXT file.', variant: 'destructive' });
+      return;
+    }
+
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast({ title: 'File too large', description: `Maximum size is ${MAX_MB} MB.`, variant: 'destructive' });
+      return;
+    }
+
+    onFileSelected(file);
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  return (
+    <div>
+      <label htmlFor={inputId} className={`block w-full border-2 border-dashed rounded-lg text-center cursor-pointer hover:bg-muted/40 transition ${small ? 'p-3' : 'p-6'}`} onDrop={onDrop} onDragOver={onDragOver}>
+        <div className="flex flex-col items-center gap-2">
+          <Upload className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">{small ? 'Upload Resume' : 'Drop your resume here or click to upload'}</p>
+            <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT up to 10MB</p>
+          </div>
+        </div>
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+        className="hidden"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+    </div>
+  );
+};
+
+// Placeholder to show where the AI call would occur later
+function analyzeResume(file: File) {
+  // eslint-disable-next-line no-console
+  console.log('Analyzing resume (placeholder):', file.name, file.size, file.type);
+}

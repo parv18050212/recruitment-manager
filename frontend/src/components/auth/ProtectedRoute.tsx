@@ -23,11 +23,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (!user || !profile) {
+  // Allow access as long as the user is authenticated; profile may still be loading/created
+  if (!user) {
     return <Navigate to={redirectTo} replace />;
   }
 
-  if (requiredRole && profile.role !== requiredRole) {
+  if (requiredRole && profile && profile.role !== requiredRole) {
     return <Navigate to="/unauthorized" replace />;
   }
 

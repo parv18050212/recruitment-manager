@@ -30,22 +30,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Helper to fetch or create profile for the current user
+    const fetchOrCreateProfile = async (currentUser: User) => {
+      // Try fetch existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (!fetchError && existingProfile) {
+        return existingProfile;
+      }
+
+      // If not found, create a minimal profile using user metadata
+      const metadata = currentUser.user_metadata || {};
+      const insertPayload = {
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: metadata.full_name ?? '',
+        role: metadata.role ?? 'candidate',
+        phone: metadata.phone ?? null,
+        location: metadata.location ?? null,
+      };
+
+      const { data: createdProfile } = await supabase
+        .from('profiles')
+        .insert(insertPayload)
+        .select('*')
+        .single();
+
+      return createdProfile ?? null;
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Fetch user profile
-          setTimeout(async () => {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            setProfile(profileData);
-          }, 0);
+      async (_event, nextSession) => {
+        setLoading(true);
+        setSession(nextSession);
+        const nextUser = nextSession?.user ?? null;
+        setUser(nextUser);
+
+        if (nextUser) {
+          const p = await fetchOrCreateProfile(nextUser);
+          setProfile(p);
         } else {
           setProfile(null);
         }
@@ -53,12 +81,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Get initial session and ensure profile exists before clearing loading
+    (async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      const initialUser = initialSession?.user ?? null;
+      setUser(initialUser);
+      if (initialUser) {
+        const p = await fetchOrCreateProfile(initialUser);
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
       setLoading(false);
-    });
+    })();
 
     return () => subscription.unsubscribe();
   }, []);

@@ -21,20 +21,12 @@ const Index = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {user ? (
-                <Button asChild>
-                  <Link to="/dashboard">Go to Dashboard</Link>
-                </Button>
-              ) : (
-                <>
-                  <Button variant="ghost" asChild>
-                    <Link to="/auth">Sign In</Link>
-                  </Button>
-                  <Button asChild>
-                    <Link to="/auth">Get Started</Link>
-                  </Button>
-                </>
-              )}
+              <Button variant="ghost" asChild>
+                <Link to="/dashboard">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/dashboard">Get Started</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -53,7 +45,7 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>
-              <Link to="/auth">
+              <Link to="/dashboard">
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
