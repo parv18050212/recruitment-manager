@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +9,16 @@ import Navbar from '@/components/layout/Navbar';
 import { AIChat } from '@/components/ai/AIChat';
 import { ResumeUpload } from '@/components/ai/ResumeUpload';
 
+// Mock guest profile for guest users
+const guestProfile = {
+  id: 'guest-user-id',
+  full_name: 'Guest User',
+  role: 'candidate',
+  email: 'guest@example.com',
+};
+
 const CandidateDashboard = () => {
-  const { profile } = useAuth();
+  const profile = guestProfile;
   const { toast } = useToast();
   const [stats, setStats] = useState({
     totalResumes: 0,
@@ -22,7 +28,7 @@ const CandidateDashboard = () => {
   });
   const [recentMatches, setRecentMatches] = useState([]);
   const [resumes, setResumes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -30,31 +36,17 @@ const CandidateDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch resume statistics
-      const { data: resumeData } = await supabase
-        .from('resumes')
-        .select('*, resume_skills(*)')
-        .eq('candidate_id', profile.id);
-
-      // Fetch job matches
-      const { data: matches } = await supabase
-        .from('matches')
-        .select('*, jobs(title, company_id, companies(name))')
-        .eq('candidate_id', profile.id)
-        .order('fit_score', { ascending: false })
-        .limit(5);
-
-      const totalSkills = resumeData?.reduce((acc, resume) => acc + (resume.resume_skills?.length || 0), 0) || 0;
-
+      setLoading(true);
+      // For guest users, we'll use mock data or empty results
+      // Remove database queries that require user authentication
       setStats({
-        totalResumes: resumeData?.length || 0,
-        jobMatches: matches?.length || 0,
-        profileViews: 0, // This would come from analytics
-        skillsExtracted: totalSkills
+        totalResumes: 0,
+        jobMatches: 0,
+        profileViews: 0,
+        skillsExtracted: 0
       });
-
-      setRecentMatches(matches || []);
-      setResumes(resumeData || []);
+      setRecentMatches([]);
+      setResumes([]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast({

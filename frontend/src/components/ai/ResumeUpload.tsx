@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/auth/AuthProvider';
 
 interface UploadStatus {
   status: 'idle' | 'uploading' | 'processing' | 'completed' | 'error';

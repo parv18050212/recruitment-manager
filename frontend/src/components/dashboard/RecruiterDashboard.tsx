@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Users, Briefcase, TrendingUp, Upload, MessageSquare } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import { AIChat } from '@/components/ai/AIChat';
 
+// Mock guest profile for guest users
+const guestProfile = {
+  id: 'guest-user-id',
+  full_name: 'Guest User',
+  role: 'recruiter',
+  email: 'guest@example.com',
+};
+
 const RecruiterDashboard = () => {
-  const { profile } = useAuth();
+  const profile = guestProfile;
   const { toast } = useToast();
   const [stats, setStats] = useState({
     totalJobs: 0,
@@ -22,7 +27,7 @@ const RecruiterDashboard = () => {
   });
   const [recentJobs, setRecentJobs] = useState([]);
   const [topMatches, setTopMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -30,34 +35,17 @@ const RecruiterDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch job statistics
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('recruiter_id', profile.id);
-
-      // Fetch matches statistics
-      const { data: matches } = await supabase
-        .from('matches')
-        .select('*, resumes(*, profiles(full_name)), jobs(title)')
-        .eq('recruiter_id', profile.id)
-        .order('fit_score', { ascending: false })
-        .limit(5);
-
+      setLoading(true);
+      // For guest users, we'll use mock data or empty results
+      // Remove database queries that require user authentication
       setStats({
-        totalJobs: jobs?.length || 0,
-        activeJobs: jobs?.filter(job => job.is_active).length || 0,
-        totalCandidates: matches?.length || 0,
-        newMatches: matches?.filter(match => {
-          const createdAt = new Date(match.created_at);
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          return createdAt > oneWeekAgo;
-        }).length || 0
+        totalJobs: 0,
+        activeJobs: 0,
+        totalCandidates: 0,
+        newMatches: 0
       });
-
-      setRecentJobs(jobs?.slice(0, 3) || []);
-      setTopMatches(matches || []);
+      setRecentJobs([]);
+      setTopMatches([]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast({
